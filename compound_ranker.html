@@ -1,0 +1,902 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VOC Compound Ranking System</title>
+    
+    <!-- External Libraries -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <script src="vocdb_data.js"></script>
+    
+    <style>
+        /* ===== GLOBAL STYLES ===== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        /* ===== CONTAINER ===== */
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        /* ===== HEADER ===== */
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1em;
+        }
+
+        /* ===== CONTROLS ===== */
+        .controls {
+            padding: 20px 30px;
+            background: #f8f9fa;
+            border-bottom: 2px solid #e9ecef;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #218838;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(40, 167, 69, 0.4);
+        }
+
+        .btn-warning {
+            background: #ffc107;
+            color: #212529;
+        }
+
+        .btn-warning:hover {
+            background: #e0a800;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(255, 193, 7, 0.4);
+        }
+
+        .btn-info {
+            background: #17a2b8;
+            color: white;
+        }
+
+        .btn-info:hover {
+            background: #138496;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(23, 162, 184, 0.4);
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c82333;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(220, 53, 69, 0.4);
+        }
+
+        /* ===== CONTENT AREA ===== */
+        .content {
+            padding: 30px;
+        }
+
+        .table-container {
+            overflow-x: auto;
+            margin-top: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        /* ===== TABLE STYLES ===== */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            min-width: 1800px;
+        }
+
+        th {
+            background: #343a40;
+            color: white;
+            padding: 15px 10px;
+            text-align: left;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+            cursor: pointer;
+            user-select: none;
+            white-space: nowrap;
+            font-size: 0.9em;
+        }
+
+        th:hover {
+            background: #23272b;
+        }
+
+        td {
+            padding: 12px 10px;
+            border-bottom: 1px solid #dee2e6;
+            font-size: 0.85em;
+        }
+
+        tr:hover {
+            background: #f8f9fa;
+        }
+
+        /* ===== PRIORITY COLORS ===== */
+        .priority-high {
+            background-color: #ffcccc !important;
+        }
+
+        .priority-medium {
+            background-color: #ffffcc !important;
+        }
+
+        .priority-low {
+            background-color: #ccffcc !important;
+        }
+
+        /* ===== BADGES ===== */
+        .rank-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 0.9em;
+        }
+
+        .rank-1, .rank-2, .rank-3 {
+            background: #dc3545;
+            color: white;
+        }
+
+        .score-badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-weight: bold;
+            background: #667eea;
+            color: white;
+        }
+
+        /* ===== EMPTY STATE ===== */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #6c757d;
+        }
+
+        .empty-state svg {
+            width: 100px;
+            height: 100px;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+
+        .empty-state h3 {
+            font-size: 1.5em;
+            margin-bottom: 10px;
+        }
+
+        /* ===== MODAL ===== */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            animation: fadeIn 0.3s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 30px;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            animation: slideIn 0.3s;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateY(-50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            line-height: 20px;
+        }
+
+        .close:hover {
+            color: #000;
+        }
+
+        /* ===== FORM STYLES ===== */
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #343a40;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .required::after {
+            content: " *";
+            color: #dc3545;
+        }
+
+        /* ===== STATUS BAR ===== */
+        .status-bar {
+            padding: 15px 30px;
+            background: #343a40;
+            color: white;
+            text-align: center;
+            font-size: 14px;
+        }
+
+        /* ===== RESPONSIVE ===== */
+        @media (max-width: 768px) {
+            .controls {
+                flex-direction: column;
+            }
+
+            button {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🧪 VOC Compound Ranking System</h1>
+            <p>Industry-Standard Risk Assessment for SIM Method Development</p>
+        </div>
+
+        <!-- Controls -->
+        <div class="controls">
+            <button class="btn-primary" onclick="document.getElementById('lsrFile').click()">📂 Import LSR Files</button>
+            <input type="file" id="lsrFile" accept=".csv,.xlsx,.xls" multiple onchange="importLSRFiles(event)" style="display: none;">
+            <button class="btn-primary" onclick="showAddCompoundModal()">➕ Add Compound</button>
+            <button class="btn-success" onclick="calculateRankings()">🔢 Calculate Rankings</button>
+            <button class="btn-warning" onclick="exportResults()">💾 Export to Excel</button>
+            <button class="btn-info" onclick="loadSampleData()">📊 Load Sample Data</button>
+            <button class="btn-danger" onclick="clearAll()">🗑️ Clear All</button>
+        </div>
+
+        <!-- Content Area -->
+        <div class="content">
+            <div class="table-container">
+                <!-- Empty State -->
+                <div id="emptyState" class="empty-state">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                    <h3>No Compounds Yet</h3>
+                    <p>Import LSR files or add compounds manually to get started</p>
+                </div>
+
+                <!-- Data Table -->
+                <table id="compoundTable" style="display: none;">
+                    <thead>
+                        <tr>
+                            <th onclick="sortTable(0)">Rank ↕</th>
+                            <th onclick="sortTable(1)">Name ↕</th>
+                            <th onclick="sortTable(2)">CAS # ↕</th>
+                            <th onclick="sortTable(3)">Area % ↕</th>
+                            <th onclick="sortTable(4)">TWA-TLV ↕</th>
+                            <th onclick="sortTable(5)">Odor Thresh ↕</th>
+                            <th onclick="sortTable(6)">HTOX ↕</th>
+                            <th onclick="sortTable(7)">PR ↕</th>
+                            <th onclick="sortTable(8)">REG ↕</th>
+                            <th onclick="sortTable(9)">Risk Score ↕</th>
+                            <th onclick="sortTable(10)">Prop 65 ↕</th>
+                            <th onclick="sortTable(11)">SIN List ↕</th>
+                            <th onclick="sortTable(12)">GHS ↕</th>
+                            <th onclick="sortTable(13)">IARC ↕</th>
+                            <th onclick="sortTable(14)">Banned/Restricted ↕</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Status Bar -->
+        <div class="status-bar" id="statusBar">
+            Ready to import LSR files. System uses industry-standard OSHA/NIOSH risk assessment methodology.
+        </div>
+    </div>
+
+    <!-- Add Compound Modal -->
+    <div id="addCompoundModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <h2 style="margin-bottom: 20px; color: #667eea;">Add New Compound</h2>
+            <form id="compoundForm" onsubmit="saveCompound(event)">
+                <div class="form-group">
+                    <label class="required">Compound Name</label>
+                    <input type="text" id="name" required>
+                </div>
+                <div class="form-group">
+                    <label class="required">CAS Number</label>
+                    <input type="text" id="casNumber" required>
+                </div>
+                <div class="form-group">
+                    <label>TWA-TLV (mg/m³)</label>
+                    <input type="number" step="0.01" id="twaTlv" placeholder="Auto-filled from database">
+                </div>
+                <div class="form-group">
+                    <label>Odor Threshold (mg/m³)</label>
+                    <input type="number" step="0.01" id="odorThreshold" placeholder="Auto-filled from database">
+                </div>
+                <div class="form-group">
+                    <label>HTOX (0.1, 1, or 10)</label>
+                    <select id="htox">
+                        <option value="0.1">0.1 - Low Toxicity</option>
+                        <option value="1" selected>1 - Medium Toxicity</option>
+                        <option value="10">10 - High Toxicity</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>PR (Priority: 1-3)</label>
+                    <select id="pr">
+                        <option value="1" selected>1 - Low Priority</option>
+                        <option value="2">2 - Medium Priority</option>
+                        <option value="3">3 - High Priority</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>REG (Regulatory: 1-3)</label>
+                    <select id="reg">
+                        <option value="1" selected>1 - Low Regulation</option>
+                        <option value="2">2 - Medium Regulation</option>
+                        <option value="3">3 - High Regulation</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn-success" style="width: 100%; margin-top: 10px;">Add Compound</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // ===== GLOBAL VARIABLES =====
+        let compounds = [];
+        let sortedCompounds = [];
+
+        // ===== COMPOUND CLASS =====
+        class Compound {
+            constructor(data) {
+                this.name = data.name || '';
+                this.casNumber = data.casNumber || '';
+                this.twaTlv = parseFloat(data.twaTlv) || 100;
+                this.odorThreshold = parseFloat(data.odorThreshold) || 10;
+                this.htox = parseFloat(data.htox) || 1;
+                this.pr = parseInt(data.pr) || 1;
+                this.reg = parseInt(data.reg) || 1;
+                this.prop65 = data.prop65 || '';
+                this.sinList = data.sinList || '';
+                this.ghsStatements = data.ghsStatements || '';
+                this.iarcClassification = data.iarcClassification || '';
+                this.bannedRestricted = data.bannedRestricted || '';
+                this.areaPercent = parseFloat(data.areaPercent) || 0;
+                this.rankScore = 0;
+                this.calculateRankScore();
+            }
+
+            calculateRankScore() {
+                // Industry-Standard Risk Assessment Formula
+                // Risk = (Severity × Exposure) / 100
+                // Based on OSHA/NIOSH methodology
+                
+                let severity = 0;
+                
+                // TWA-TLV Contribution (0-40 points)
+                if (this.twaTlv < 1) severity += 40;
+                else if (this.twaTlv < 10) severity += 30;
+                else if (this.twaTlv < 50) severity += 20;
+                else if (this.twaTlv < 200) severity += 10;
+                else severity += 5;
+                
+                // HTOX Contribution (0-30 points)
+                if (this.htox >= 10) severity += 30;
+                else if (this.htox >= 1) severity += 15;
+                else severity += 5;
+                
+                // Regulatory Contribution (0-30 points)
+                const iarc = String(this.iarcClassification).toLowerCase();
+                const prop65Listed = ['yes', 'y', 'listed', 'cancer'].some(val =>
+                    String(this.prop65).toLowerCase().includes(val)
+                );
+                const sinListed = ['yes', 'y', 'listed', 'carcinogenic'].some(val =>
+                    String(this.sinList).toLowerCase().includes(val)
+                );
+                const isBanned = ['yes', 'banned', 'restricted'].includes(
+                    String(this.bannedRestricted).toLowerCase()
+                );
+                
+                if ((iarc.includes('1') || iarc.includes('group 1')) || isBanned) {
+                    severity += 30;
+                } else if (iarc.includes('2a') || prop65Listed) {
+                    severity += 20;
+                } else if (iarc.includes('2b') || sinListed) {
+                    severity += 10;
+                } else if (this.reg >= 2) {
+                    severity += 5;
+                }
+                
+                // Calculate Risk Score
+                const exposure = this.areaPercent || 0;
+                this.rankScore = Math.round((severity * exposure) / 100 * 100) / 100;
+                return this.rankScore;
+            }
+
+            getPriorityClass() {
+                if (this.rankScore >= 1.0) return 'priority-high';
+                if (this.rankScore >= 0.1) return 'priority-medium';
+                return 'priority-low';
+            }
+        }
+
+        // ===== UTILITY FUNCTIONS =====
+        function updateStatus(message) {
+            document.getElementById('statusBar').textContent = message;
+        }
+
+        function formatField(value) {
+            if (!value || value === '' || value.toLowerCase() === 'not listed') {
+                return '<span style="color: #6c757d;">Not Listed</span>';
+            }
+            if (value.toLowerCase().includes('cancer') || value.toLowerCase().includes('carcinogenic')) {
+                return `<span style="color: #dc3545; font-weight: bold;">✓ ${value}</span>`;
+            }
+            if (value.toLowerCase() === 'yes' || value.toLowerCase() === 'restricted' || value.toLowerCase() === 'banned') {
+                return `<span style="color: #dc3545; font-weight: bold;">✓ ${value}</span>`;
+            }
+            if (value.toLowerCase().includes('group 1') || value.toLowerCase().includes('group 2')) {
+                return `<span style="color: #dc3545; font-weight: bold;">${value}</span>`;
+            }
+            return value;
+        }
+
+        // ===== DISPLAY FUNCTIONS =====
+        function refreshDisplay() {
+            const allCompounds = [...compounds].sort((a, b) => b.rankScore - a.rankScore);
+            
+            // Filter: Show only HIGH (≥1.0) and MEDIUM (≥0.1) priority
+            const displayCompounds = allCompounds.filter(compound => compound.rankScore >= 0.1);
+            
+            const tableBody = document.getElementById('tableBody');
+            const emptyState = document.getElementById('emptyState');
+            const table = document.getElementById('compoundTable');
+            
+            if (displayCompounds.length === 0) {
+                emptyState.style.display = 'block';
+                table.style.display = 'none';
+                return;
+            }
+            
+            emptyState.style.display = 'none';
+            table.style.display = 'table';
+            tableBody.innerHTML = '';
+            
+            displayCompounds.forEach((compound, index) => {
+                const row = tableBody.insertRow();
+                row.innerHTML = `
+                    <td><span class="rank-badge ${index < 3 ? 'rank-' + (index + 1) : ''}">${index + 1}</span></td>
+                    <td><strong>${compound.name}</strong></td>
+                    <td>${compound.casNumber}</td>
+                    <td><strong style="color: #007bff;">${compound.areaPercent ? compound.areaPercent.toFixed(2) + '%' : '-'}</strong></td>
+                    <td>${compound.twaTlv.toFixed(2)}</td>
+                    <td>${compound.odorThreshold.toFixed(2)}</td>
+                    <td><strong>${compound.htox.toFixed(1)}</strong></td>
+                    <td><strong>${compound.pr}</strong></td>
+                    <td><strong>${compound.reg}</strong></td>
+                    <td><span class="score-badge">${compound.rankScore.toFixed(2)}</span></td>
+                    <td>${formatField(compound.prop65)}</td>
+                    <td>${formatField(compound.sinList)}</td>
+                    <td style="font-size: 0.75em;">${compound.ghsStatements ? compound.ghsStatements.substring(0, 40) + (compound.ghsStatements.length > 40 ? '...' : '') : '<span style="color: #6c757d;">-</span>'}</td>
+                    <td>${formatField(compound.iarcClassification)}</td>
+                    <td>${formatField(compound.bannedRestricted)}</td>
+                `;
+                row.className = compound.getPriorityClass();
+            });
+        }
+
+        // ===== MODAL FUNCTIONS =====
+        function showAddCompoundModal() {
+            document.getElementById('addCompoundModal').style.display = 'block';
+        }
+
+        function closeModal() {
+            document.getElementById('addCompoundModal').style.display = 'none';
+            document.getElementById('compoundForm').reset();
+        }
+
+        function saveCompound(event) {
+            event.preventDefault();
+            const compound = new Compound({
+                name: document.getElementById('name').value,
+                casNumber: document.getElementById('casNumber').value,
+                twaTlv: document.getElementById('twaTlv').value || 100,
+                odorThreshold: document.getElementById('odorThreshold').value || 10,
+                htox: document.getElementById('htox').value,
+                pr: document.getElementById('pr').value,
+                reg: document.getElementById('reg').value
+            });
+            compounds.push(compound);
+            updateStatus(`Added compound: ${compound.name}`);
+            closeModal();
+            refreshDisplay();
+        }
+
+        // ===== CALCULATION FUNCTIONS =====
+        function calculateRankings() {
+            if (compounds.length === 0) {
+                alert('Please import or add compounds first.');
+                return;
+            }
+            compounds.forEach(compound => compound.calculateRankScore());
+            sortedCompounds = [...compounds].sort((a, b) => b.rankScore - a.rankScore);
+            updateStatus(`Calculated rankings for ${compounds.length} compounds`);
+            refreshDisplay();
+        }
+
+        // ===== AUTO-ALLOCATION FUNCTION =====
+        function autoAllocateValues(compoundName) {
+            const name = compoundName.toLowerCase();
+            let twa = 100, odor = 10, htox = 1, pr = 1, reg = 1;
+            
+            // High danger chemicals
+            if (name.includes('benzene') || name.includes('formaldehyde') || name.includes('asbestos')) {
+                twa = 0.5; odor = 1; htox = 10; pr = 3; reg = 3;
+            }
+            // Nitriles
+            else if (name.includes('nitrile') || name.includes('cyano')) {
+                twa = 10; odor = 1; htox = 10; pr = 3; reg = 2;
+            }
+            // Chlorinated compounds
+            else if (name.includes('chlor') || name.includes('dichlor') || name.includes('trichlor')) {
+                twa = 25; odor = 5; htox = 10; pr = 2; reg = 2;
+            }
+            // Fluorinated compounds
+            else if (name.includes('fluor')) {
+                twa = 50; odor = 5; htox = 1; pr = 2; reg = 2;
+            }
+            // Ketones
+            else if (name.includes('ketone') || name.includes('one')) {
+                twa = 200; odor = 10; htox = 1; pr = 1; reg = 1;
+            }
+            // Alcohols
+            else if (name.includes('alcohol') || name.includes('ol')) {
+                twa = 100; odor = 10; htox = 1; pr = 1; reg = 1;
+            }
+            
+            return {twa, odor, htox, pr, reg};
+        }
+
+        // ===== LSR IMPORT FUNCTION =====
+        function importLSRFiles(event) {
+            const files = event.target.files;
+            if (!files || files.length === 0) return;
+
+            updateStatus(`Processing ${files.length} LSR files...`);
+            let filesProcessed = 0;
+            let totalImported = 0;
+
+            const validFiles = Array.from(files).filter(f => {
+                const fn = f.name.toLowerCase();
+                return fn.includes('lsr') && (fn.endsWith('.xlsx') || fn.endsWith('.xls') || fn.endsWith('.csv'));
+            });
+
+            if (validFiles.length === 0) {
+                alert('No LSR files found. Please select files with "lsr" in the filename.');
+                event.target.value = '';
+                return;
+            }
+
+            validFiles.forEach(file => {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        const data = new Uint8Array(e.target.result);
+                        const workbook = XLSX.read(data, { type: 'array' });
+                        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+                        const range = XLSX.utils.decode_range(worksheet['!ref']);
+                        const beforeCount = compounds.length;
+                        
+                        // Process rows starting from row 8 (skip first 7 rows)
+                        for (let rowNum = range.s.r + 7; rowNum <= range.e.r; rowNum++) {
+                            const cellD = worksheet[XLSX.utils.encode_cell({r: rowNum, c: 3})]; // Area %
+                            const cellE = worksheet[XLSX.utils.encode_cell({r: rowNum, c: 4})]; // Name
+                            const cellG = worksheet[XLSX.utils.encode_cell({r: rowNum, c: 6})]; // CAS
+                            
+                            if (cellE) {
+                                const areaPercent = cellD ? (parseFloat(cellD.v) || 0) : 0;
+                                const compoundName = String(cellE.v || '').trim();
+                                let casNumber = cellG ? String(cellG.v || '').trim() : '';
+                                
+                                // Normalize CAS number
+                                if (casNumber) {
+                                    casNumber = casNumber.split('-').map(part => String(parseInt(part, 10) || part)).join('-');
+                                }
+                                
+                                if (compoundName) {
+                                    // Search database
+                                    let dbData = null;
+                                    if (typeof VOC_DATABASE !== 'undefined') {
+                                        for (let sheetName in VOC_DATABASE) {
+                                            const records = VOC_DATABASE[sheetName];
+                                            for (let record of records) {
+                                                let dbCas = String(record['CAS #'] || '').trim();
+                                                if (dbCas) {
+                                                    dbCas = dbCas.split('-').map(part => String(parseInt(part, 10) || part)).join('-');
+                                                }
+                                                const dbName = String(record['Compound Name'] || '').toLowerCase().trim();
+                                                const searchName = compoundName.toLowerCase().trim();
+                                                
+                                                if ((dbName === searchName) || (casNumber && dbCas && casNumber === dbCas)) {
+                                                    dbData = record;
+                                                    break;
+                                                }
+                                            }
+                                            if (dbData) break;
+                                        }
+                                    }
+                                    
+                                    // Auto-allocate if not in database
+                                    let allocatedValues = dbData ? null : autoAllocateValues(compoundName);
+                                    
+                                    const compoundData = {
+                                        name: compoundName,
+                                        casNumber: casNumber || 'Unknown',
+                                        twaTlv: dbData ? parseFloat(String(dbData['TWA-TLV(R)* mg/m3'] || '100').replace(/[^0-9.]/g, '') || 100) : allocatedValues.twa,
+                                        odorThreshold: dbData ? parseFloat(dbData['ODOR THRSHLD mg/m3'] || 10) : allocatedValues.odor,
+                                        htox: dbData ? parseFloat(dbData['HTOX (0.1 1 10)'] || 1) : allocatedValues.htox,
+                                        pr: dbData ? parseInt(dbData['PR ( 1,2,3)'] || 1) : allocatedValues.pr,
+                                        reg: dbData ? parseInt(dbData['REG (1,2,3)'] || 1) : allocatedValues.reg,
+                                        prop65: dbData ? (dbData['Prop 65'] || '') : '',
+                                        sinList: dbData ? (dbData['SIN List'] || '') : '',
+                                        ghsStatements: dbData ? (dbData['GHS Statements'] || '') : '',
+                                        iarcClassification: dbData ? (dbData['IARC Classification'] || '') : '',
+                                        bannedRestricted: dbData ? (dbData['Banned/Restricted'] || '') : '',
+                                        areaPercent: areaPercent
+                                    };
+                                    
+                                    compounds.push(new Compound(compoundData));
+                                }
+                            }
+                        }
+                        
+                        const imported = compounds.length - beforeCount;
+                        totalImported += imported;
+                        filesProcessed++;
+                        
+                        if (filesProcessed === validFiles.length) {
+                            updateStatus(`✅ Imported ${totalImported} compounds from ${filesProcessed} LSR files`);
+                            refreshDisplay();
+                        }
+                    } catch (error) {
+                        console.error(`Error reading ${file.name}:`, error);
+                        filesProcessed++;
+                        if (filesProcessed === validFiles.length) {
+                            updateStatus(`✅ Imported ${totalImported} compounds from ${filesProcessed} LSR files`);
+                            refreshDisplay();
+                        }
+                    }
+                };
+                reader.readAsArrayBuffer(file);
+            });
+
+            event.target.value = '';
+        }
+
+        // ===== EXPORT FUNCTION =====
+        function exportResults() {
+            if (compounds.length === 0) {
+                alert('No compounds to export.');
+                return;
+            }
+
+            const displayCompounds = [...compounds].sort((a, b) => b.rankScore - a.rankScore);
+            const wb = XLSX.utils.book_new();
+            
+            const data = [
+                ['Rank', 'Priority', 'Name', 'CAS #', 'Area %', 'TWA-TLV (mg/m3)', 'Odor Threshold (mg/m3)', 'HTOX', 'PR', 'REG', 'Risk Score', 'Prop 65', 'SIN List', 'GHS Statements', 'IARC Classification', 'Banned/Restricted']
+            ];
+            
+            displayCompounds.forEach((compound, index) => {
+                let priority = 'LOW';
+                if (compound.rankScore >= 1.0) priority = 'HIGH';
+                else if (compound.rankScore >= 0.1) priority = 'MEDIUM';
+                
+                data.push([
+                    index + 1,
+                    priority,
+                    compound.name,
+                    compound.casNumber,
+                    compound.areaPercent || 0,
+                    compound.twaTlv,
+                    compound.odorThreshold,
+                    compound.htox,
+                    compound.pr,
+                    compound.reg,
+                    compound.rankScore,
+                    compound.prop65 || '',
+                    compound.sinList || '',
+                    compound.ghsStatements || '',
+                    compound.iarcClassification || '',
+                    compound.bannedRestricted || ''
+                ]);
+            });
+            
+            const ws = XLSX.utils.aoa_to_sheet(data);
+            
+            // Set column widths
+            ws['!cols'] = [
+                {wch: 6}, {wch: 10}, {wch: 40}, {wch: 12}, {wch: 8}, {wch: 12},
+                {wch: 12}, {wch: 6}, {wch: 4}, {wch: 4}, {wch: 10}, {wch: 15},
+                {wch: 15}, {wch: 50}, {wch: 15}, {wch: 15}
+            ];
+            
+            XLSX.utils.book_append_sheet(wb, ws, 'Compound Rankings');
+            XLSX.writeFile(wb, `compound_rankings_${new Date().toISOString().split('T')[0]}.xlsx`);
+            
+            updateStatus(`Exported ${displayCompounds.length} compounds. Use Priority column for color coding: HIGH=Red, MEDIUM=Yellow, LOW=Green`);
+        }
+
+        // ===== OTHER FUNCTIONS =====
+        function clearAll() {
+            if (confirm('Clear all compounds?')) {
+                compounds = [];
+                sortedCompounds = [];
+                refreshDisplay();
+                updateStatus('All compounds cleared');
+            }
+        }
+
+        function loadSampleData() {
+            compounds = [
+                new Compound({
+                    name: 'Benzene',
+                    casNumber: '71-43-2',
+                    twaTlv: 0.5,
+                    odorThreshold: 1.5,
+                    htox: 10,
+                    pr: 3,
+                    reg: 3,
+                    prop65: 'Yes',
+                    sinList: 'Yes',
+                    iarcClassification: 'Group 1',
+                    areaPercent: 5.2
+                }),
+                new Compound({
+                    name: 'Toluene',
+                    casNumber: '108-88-3',
+                    twaTlv: 50,
+                    odorThreshold: 2.9,
+                    htox: 1,
+                    pr: 2,
+                    reg: 2,
+                    prop65: 'Yes',
+                    iarcClassification: 'Group 3',
+                    areaPercent: 3.1
+                })
+            ];
+            updateStatus('Loaded sample data');
+            refreshDisplay();
+        }
+
+        function sortTable(columnIndex) {
+            if (sortedCompounds.length === 0 && compounds.length > 0) {
+                sortedCompounds = [...compounds];
+            }
+            refreshDisplay();
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('addCompoundModal');
+            if (event.target === modal) {
+                closeModal();
+            }
+        };
+    </script>
+</body>
+</html>
